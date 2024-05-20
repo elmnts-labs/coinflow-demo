@@ -7,7 +7,14 @@ declare_id!("3nYFYeGungM4L5WZ9BJLsieUrmXPSrmtmmihfUyMA2Vj");
 pub mod coinflow_test {
     use super::*;
 
-    pub fn initialize(_ctx: Context<Initialize>, amount: u64, amount_decimals: u8) -> Result<()> {
+    pub fn initialize_escrow(_ctx: Context<InitializeEscrow>, amount: u64, amount_decimals: u8) -> Result<()> {
+        _ctx.accounts.escrow.amount = amount;
+        _ctx.accounts.escrow.amount_decimals = amount_decimals;
+
+        Ok(())
+    }
+
+    pub fn fund_escrow(_ctx: Context<FundEscrow>) -> Result<()> {
         let transfer_accounts = TransferChecked {
             from: _ctx.accounts.payer_ta.to_account_info(),
             to: _ctx.accounts.deposit_ta.to_account_info(),
@@ -20,14 +27,22 @@ pub mod coinflow_test {
             transfer_accounts,
         );
 
-        transfer_checked(transfer_context, amount, amount_decimals)?;
+        transfer_checked(transfer_context, _ctx.accounts.escrow.amount, _ctx.accounts.escrow.amount_decimals)?;
 
         Ok(())
     }
 }
 
 #[derive(Accounts)]
-pub struct Initialize<'info> {
+pub struct InitializeEscrow<'info> {
+    #[account(
+        init,
+        payer = signer,
+        seeds = [b"escrow_deposit", deposit_mint.key().as_ref(), user.key().as_ref()],
+        bump,
+        space = 17
+    )]
+    pub escrow: Account<'info, MockEscrow>,
     #[account(
         init,
         payer = signer,
@@ -35,6 +50,29 @@ pub struct Initialize<'info> {
         token::authority = user,
         seeds = [b"escrow_deposit_ta", deposit_mint.key().as_ref(), user.key().as_ref()],
         bump
+    )]
+    pub deposit_ta: Account<'info, TokenAccount>,
+    pub deposit_mint: Account<'info, Mint>,
+    /// CHECK: This is the user account that will be the owner of the escrow
+    pub user: AccountInfo<'info>,
+    #[account(mut)]
+    pub signer: Signer<'info>,
+    pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+    pub rent: Sysvar<'info, Rent>,
+}
+
+#[derive(Accounts)]
+pub struct FundEscrow<'info> {
+    #[account(
+        seeds = [b"escrow_deposit", deposit_mint.key().as_ref(), user.key().as_ref()],
+        bump,
+    )]
+    pub escrow: Account<'info, MockEscrow>,
+    #[account(
+        seeds = [b"escrow_deposit_ta", deposit_mint.key().as_ref(), user.key().as_ref()],
+        bump,
+        mut
     )]
     pub deposit_ta: Account<'info, TokenAccount>,
     pub deposit_mint: Account<'info, Mint>,
@@ -52,6 +90,5 @@ pub struct Initialize<'info> {
 #[account]
 pub struct MockEscrow {
     pub amount: u64,
-    pub amount_decimals: u8,
-    pub owner: Pubkey,
+    pub amount_decimals: u8
 }

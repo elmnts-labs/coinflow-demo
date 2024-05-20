@@ -11,7 +11,7 @@ coinflow_test = "3nYFYeGungM4L5WZ9BJLsieUrmXPSrmtmmihfUyMA2Vj"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Devnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
